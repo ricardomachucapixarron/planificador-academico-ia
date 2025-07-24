@@ -92,9 +92,13 @@ export default function AcademicPlanner() {
       }
 
       // n8n debe estar configurado para responder con el resultado final.
-      const resultData: Plan[] = await response.json();
+      const responseData = await response.json();
       
-      // Actualizamos el estado con los planes recibidos de n8n
+      // --- ESTA ES LA LÍNEA CORREGIDA ---
+      // Accedemos al array 'planes' que está dentro del objeto que devuelve n8n.
+      const resultData: Plan[] = responseData.planes; 
+      
+      // Actualizamos el estado con los planes recibidos
       setPlans(resultData);
       setHasGenerated(true);
 
@@ -247,14 +251,13 @@ export default function AcademicPlanner() {
 
             {/* Iteramos sobre cada Plan devuelto por n8n */}
             <div className="space-y-8">
-              {plans.map((plan, planIndex) => (
+              {plans && plans.map((plan, planIndex) => (
                 <Card key={planIndex} className="bg-white shadow-md rounded-lg">
                   <CardHeader>
                     <CardTitle className="text-lg font-semibold text-gray-800">
                       Búsqueda Original:
                     </CardTitle>
                     <CardDescription className="italic">
-                      {/* --- ESTA ES LA LÍNEA CORREGIDA --- */}
                       {`"${plan.chatInput_clean}"`}
                     </CardDescription>
                   </CardHeader>

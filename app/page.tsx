@@ -58,9 +58,20 @@ const ClickPopover = ({ trigger, content, contentClassName }: { trigger: React.R
             {open && (
                 <div className={`origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20 ${contentClassName}`}>
                     <div className="py-1" onClick={(e) => { if (!(e.target instanceof HTMLButtonElement && e.target.type === 'button')) e.stopPropagation(); }}>
-                        {React.Children.map(content, (child) => 
-                            React.isValidElement(child) ? React.cloneElement(child, { onClick: () => setOpen(false) } as any) : child
-                        )}
+                        {React.Children.map(content, (child) => {
+                            if (React.isValidElement(child)) {
+                                const childProps = child.props as { onClick?: () => void };
+                                return React.cloneElement(child, {
+                                    onClick: () => {
+                                        if (childProps.onClick) {
+                                            childProps.onClick();
+                                        }
+                                        setOpen(false);
+                                    }
+                                });
+                            }
+                            return child;
+                        })}
                     </div>
                 </div>
             )}

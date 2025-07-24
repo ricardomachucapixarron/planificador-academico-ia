@@ -58,7 +58,7 @@ const TooltipTrigger = React.forwardRef<
   if (asChild) {
       return React.cloneElement(child, {
         ...props,
-        ...child.props,
+        ...(child.props as any), // FIX: Cast to any to resolve spread type error
         ref: combinedRef,
         onMouseEnter: (e: React.MouseEvent) => {
             setOpen(true);

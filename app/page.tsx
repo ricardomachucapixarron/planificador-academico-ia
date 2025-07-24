@@ -7,11 +7,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { Upload, FileText, BookOpen, Target, BrainCircuit, Star, ExternalLink, Folder, FolderOpen, CheckCircle, AlertCircle, X, Check, ChevronDown, ChevronUp, FilePenLine, Link, ArrowLeft, ArrowRight, ChevronsDown, ChevronsUp, ArrowUp, Filter, SlidersHorizontal, HelpCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
-// --- FIX: Definición local del componente Tooltip (simplificado para hover) ---
+// --- FIX: Definición local del componente Tooltip ---
 const TooltipContext = React.createContext<{
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  triggerRef: React.RefObject<HTMLButtonElement>;
+  triggerRef: React.RefObject<HTMLButtonElement | null>; // Corregido para aceptar null
 } | null>(null);
 
 const useTooltip = () => {
@@ -24,7 +24,7 @@ const useTooltip = () => {
 
 const TooltipProvider = ({ children }: { children: React.ReactNode }) => {
   const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   return (
     <TooltipContext.Provider value={{ open, setOpen, triggerRef }}>
       {children}
@@ -38,8 +38,8 @@ const Tooltip = ({ children }: { children: React.ReactNode }) => {
 
 const TooltipTrigger = React.forwardRef<
   HTMLButtonElement,
-  React.HTMLAttributes<HTMLButtonElement> & { asChild?: boolean }
->(({ children, asChild = false, ...props }, ref) => {
+  React.HTMLAttributes<HTMLButtonElement>
+>(({ children, ...props }, ref) => { // Corregido: 'asChild' eliminado
   const { setOpen, triggerRef } = useTooltip();
   const internalRef = useRef<HTMLButtonElement>(null);
   const combinedRef = (node: HTMLButtonElement | null) => {
@@ -586,7 +586,7 @@ export default function AcademicPlanner() {
             )}
 
             <div className="space-y-4">
-              {filteredPlanningResults.map((result, index) => {
+              {filteredPlanningResults.map((result, _) => { // Corregido: 'index' no se usa
                 const planIndex = planningResults.findIndex(p => p.requiredsection === result.requiredsection);
                 const isExpanded = expandedCards.has(planIndex);
                 const isCovered = result.assignedSection !== null;

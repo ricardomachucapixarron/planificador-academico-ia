@@ -56,36 +56,28 @@ const TooltipTrigger = React.forwardRef<
   const child = React.Children.only(children) as React.ReactElement;
   
   if (asChild) {
-      const childProps = child.props as { [key: string]: unknown };
+      const childProps = child.props || {};
       return React.cloneElement(child, {
         ...props,
         ...childProps,
         ref: combinedRef,
         onMouseEnter: (e: React.MouseEvent) => {
             setOpen(true);
-            if (typeof childProps.onMouseEnter === 'function') {
-                childProps.onMouseEnter(e);
-            }
+            if (typeof childProps.onMouseEnter === 'function') childProps.onMouseEnter(e);
         },
         onMouseLeave: (e: React.MouseEvent) => {
             setOpen(false);
-            if (typeof childProps.onMouseLeave === 'function') {
-                childProps.onMouseLeave(e);
-            }
+            if (typeof childProps.onMouseLeave === 'function') childProps.onMouseLeave(e);
         },
         onFocus: (e: React.FocusEvent) => {
             setOpen(true);
-            if (typeof childProps.onFocus === 'function') {
-                childProps.onFocus(e);
-            }
+            if (typeof childProps.onFocus === 'function') childProps.onFocus(e);
         },
         onBlur: (e: React.FocusEvent) => {
             setOpen(false);
-            if (typeof childProps.onBlur === 'function') {
-                childProps.onBlur(e);
-            }
+            if (typeof childProps.onBlur === 'function') childProps.onBlur(e);
         }
-      });
+      } as React.HTMLAttributes<HTMLButtonElement>);
   }
 
   return (

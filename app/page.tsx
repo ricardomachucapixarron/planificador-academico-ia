@@ -32,7 +32,7 @@ const HoverTooltip = ({ children, content }: { children: React.ReactNode, conten
 };
 
 // --- FIX: Componente ClickPopover simplificado y robusto ---
-const ClickPopover = ({ trigger, content, contentClassName }: { trigger: React.ReactNode, content: React.ReactNode, contentClassName?: string }) => {
+const ClickPopover = ({ trigger, children, contentClassName }: { trigger: React.ReactNode, children: (close: () => void) => React.ReactNode, contentClassName?: string }) => {
     const [open, setOpen] = useState(false);
     const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -46,14 +46,7 @@ const ClickPopover = ({ trigger, content, contentClassName }: { trigger: React.R
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    const handleItemClick = (originalOnClick?: () => void) => {
-        return () => {
-            if (originalOnClick) {
-                originalOnClick();
-            }
-            setOpen(false);
-        };
-    };
+    const close = () => setOpen(false);
 
     return (
         <div ref={wrapperRef} className="relative inline-block text-left">
@@ -62,17 +55,7 @@ const ClickPopover = ({ trigger, content, contentClassName }: { trigger: React.R
             </div>
             {open && (
                 <div className={`origin-top-right absolute right-0 mt-2 w-auto rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20 ${contentClassName}`}>
-                    <div className="py-1">
-                         {React.Children.map(content, (child) => {
-                            if (React.isValidElement(child) && child.type === 'button') {
-                                const childProps = child.props as { onClick?: () => void };
-                                return React.cloneElement(child, {
-                                    onClick: handleItemClick(childProps.onClick)
-                                });
-                            }
-                            return child;
-                        })}
-                    </div>
+                    {children(close)}
                 </div>
             )}
         </div>
@@ -423,7 +406,8 @@ export default function AcademicPlanner() {
                             <SlidersHorizontal className="h-4 w-4" />
                         </Button>
                     }
-                    content={
+                 >
+                    {(close) => (
                         <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-between">
                                 <label htmlFor="threshold" className="text-sm font-medium">Umbral de Asignación: {tempThreshold}%</label>
@@ -448,22 +432,23 @@ export default function AcademicPlanner() {
                                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                                 style={{ background: `linear-gradient(to right, #d1d5db ${tempThreshold}%, #3b82f6 ${tempThreshold}%)`}}
                             />
-                            <Button className="w-full" size="sm" onClick={() => setIsConfirmModalOpen(true)}>Aplicar</Button>
+                            <Button className="w-full" size="sm" onClick={() => { setIsConfirmModalOpen(true); close(); }}>Aplicar</Button>
                         </div>
-                    }
-                 />
+                    )}
+                 </ClickPopover>
                  <ClickPopover
                     trigger={
                         <Button variant="outline" size="icon" className="h-8 w-8">
                             <Filter className="h-4 w-4" />
                         </Button>
                     }
-                    content={<>
-                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setFilterStatus('all')}>Todos</button>
-                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setFilterStatus('covered')}>Cubiertos</button>
-                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setFilterStatus('pending')}>Pendientes</button>
-                    </>}
-                 />
+                 >
+                    {(close) => (<>
+                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => { setFilterStatus('all'); close(); }}>Todos</button>
+                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => { setFilterStatus('covered'); close(); }}>Cubiertos</button>
+                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => { setFilterStatus('pending'); close(); }}>Pendientes</button>
+                    </>)}
+                 </ClickPopover>
                 <HoverTooltip content={<p>Expandir todo</p>}>
                     <Button variant="outline" size="icon" onClick={handleExpandAll} className="h-8 w-8">
                         <ChevronsDown className="h-4 w-4" />

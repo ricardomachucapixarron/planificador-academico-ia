@@ -8,14 +8,11 @@ import { Upload, FileText, BookOpen, Target, BrainCircuit, Star, ExternalLink, F
 import { Badge } from "@/components/ui/badge"
 
 // --- FIX: Componente HoverTooltip simplificado y robusto ---
-const HoverTooltip = ({ children, content, className }: { children: React.ReactNode, content: React.ReactNode, className?: string }) => {
+const HoverTooltip = ({ children, content }: { children: React.ReactNode, content: React.ReactNode }) => {
   const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLSpanElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
   
   return (
-    <span
-      ref={triggerRef}
+    <div
       className="relative inline-flex"
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
@@ -25,13 +22,12 @@ const HoverTooltip = ({ children, content, className }: { children: React.ReactN
       {children}
       {open && (
         <div
-          ref={contentRef}
-          className={`z-50 px-3 py-1.5 text-sm bg-gray-900 text-white rounded-md shadow-lg absolute top-full mt-2 left-1/2 -translate-x-1/2 ${className}`}
+          className="z-50 px-3 py-1.5 text-sm bg-gray-900 text-white rounded-md shadow-lg absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap"
         >
           {content}
         </div>
       )}
-    </span>
+    </div>
   );
 };
 
@@ -57,21 +53,8 @@ const ClickPopover = ({ trigger, content, contentClassName }: { trigger: React.R
             </div>
             {open && (
                 <div className={`origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20 ${contentClassName}`}>
-                    <div className="py-1" onClick={(e) => { if (!(e.target instanceof HTMLButtonElement && e.target.type === 'button')) e.stopPropagation(); }}>
-                        {React.Children.map(content, (child) => {
-                            if (React.isValidElement(child)) {
-                                const childProps = child.props as { onClick?: () => void };
-                                return React.cloneElement(child, {
-                                    onClick: () => {
-                                        if (childProps.onClick) {
-                                            childProps.onClick();
-                                        }
-                                        setOpen(false);
-                                    }
-                                });
-                            }
-                            return child;
-                        })}
+                    <div className="py-1" onClick={() => setOpen(false)}>
+                        {content}
                     </div>
                 </div>
             )}

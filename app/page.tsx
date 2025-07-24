@@ -4,23 +4,28 @@ import React, { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
-import { Upload, FileText, BookOpen, Target, BrainCircuit } from "lucide-react"
+import { Upload, FileText, BookOpen, Target, BrainCircuit, Star, ExternalLink, Folder, FolderOpen } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { ChevronDown, ChevronUp } from "lucide-react"
 
-// --- INTERFACES ADAPTADAS AL RESULTADO DE N8N ---
+// --- INTERFACES ADAPTADAS A LA NUEVA ESTRUCTURA DE N8N ---
 
-// Representa un tema individual encontrado por la búsqueda vectorial
-interface Tema {
+interface ModuleData {
+  type: string
+  moduleUrl: string
+  moduleName: string
+}
+
+interface SuggestedSection {
   sectionname: string
   sectionprofile: string
+  modulesdata: ModuleData[]
   score: number
 }
 
-// Representa el resultado completo para una búsqueda
-interface Plan {
-  chatInput_clean: string
-  temas: Tema[]
+interface PlanningResult {
+  requiredsection: string
+  suggestedsections: SuggestedSection[]
 }
 
 // --- COMPONENTE PRINCIPAL ---
@@ -29,12 +34,11 @@ export default function AcademicPlanner() {
   const [prompt, setPrompt] = useState("")
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
-  // El estado ahora almacenará una lista de planes, uno por cada resultado de n8n
-  const [plans, setPlans] = useState<Plan[]>([])
+  const [planningResults, setPlanningResults] = useState<PlanningResult[]>([])
   const [hasGenerated, setHasGenerated] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set())
 
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -44,41 +48,24 @@ export default function AcademicPlanner() {
     }
   }
 
-  // --- FUNCIÓN CLAVE PARA CONECTAR CON N8N ---
   const handleCreatePlanning = async () => {
     setIsGenerating(true)
     setHasGenerated(false)
-    setPlans([])
+    setPlanningResults([])
 
-    // ¡IMPORTANTE! Reemplaza esto con tu URL de producción real.
-    const n8nWebhookUrl = "https://pixarron.app.n8n.cloud/webhook/4d5d060a-50ce-4d82-9208-1f7baae747cc";
+    const n8nWebhookUrl = "https://pixarron.app.n8n.cloud/webhook/4d5d060a-50ce-4d82-9208-1f7baae747cc"; // ¡URL DE EJEMPLO!
 
     try {
       let response;
-
-      // Lógica para enviar el archivo si existe
       if (uploadedFile) {
         const formData = new FormData();
-        // El nombre 'data' debe coincidir con la Binary Property en n8n
         formData.append('data', uploadedFile);
-
-        response = await fetch(n8nWebhookUrl, {
-          method: 'POST',
-          body: formData, // El navegador establece el Content-Type automáticamente
-        });
-
-      // Lógica para enviar el texto si no hay archivo
+        response = await fetch(n8nWebhookUrl, { method: 'POST', body: formData });
       } else if (prompt.trim()) {
-        const requestBody = [{
-          textoBusqueda: prompt,
-          tipoDeBusqueda: "section" // o 'topic', según tu lógica
-        }];
-
+        const requestBody = [{ textoBusqueda: prompt, tipoDeBusqueda: "section" }];
         response = await fetch(n8nWebhookUrl, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         });
       } else {
@@ -87,19 +74,11 @@ export default function AcademicPlanner() {
         return;
       }
 
-      if (!response.ok) {
-        throw new Error(`Error en la petición a n8n: ${response.statusText}`);
-      }
+      if (!response.ok) throw new Error(`Error en la petición a n8n: ${response.statusText}`);
 
-      // n8n debe estar configurado para responder con el resultado final.
       const responseData = await response.json();
-      
-      // --- ESTA ES LA LÍNEA CORREGIDA ---
-      // Accedemos al array 'planes' que está dentro del objeto que devuelve n8n.
-      const resultData: Plan[] = responseData.planes; 
-      
-      // Actualizamos el estado con los planes recibidos
-      setPlans(resultData);
+      const results: PlanningResult[] = responseData.planningdata || [];
+      setPlanningResults(results);
       setHasGenerated(true);
 
     } catch (error) {
@@ -110,28 +89,36 @@ export default function AcademicPlanner() {
     }
   }
 
-  const toggleCardExpansion = (cardId: string) => {
-    const newExpanded = new Set(expandedCards)
-    if (newExpanded.has(cardId)) {
-      newExpanded.delete(cardId)
-    } else {
-      newExpanded.add(cardId)
-    }
-    setExpandedCards(newExpanded)
-  }
-
   const getSimilarityBadgeColor = (similarity: number) => {
     const score = Math.round(similarity * 100);
-    if (score > 60) {
-      return "bg-green-100 text-green-800 border-green-300"
-    } else if (score >= 40) {
-      return "bg-yellow-100 text-yellow-800 border-yellow-300"
-    } else {
-      return "bg-red-100 text-red-800 border-red-300"
-    }
+    if (score > 60) return "bg-green-100 text-green-800 border-green-300";
+    if (score >= 40) return "bg-yellow-100 text-yellow-800 border-yellow-300";
+    return "bg-red-100 text-red-800 border-red-300";
   }
 
-  const canCreatePlanning = (prompt.trim().length > 0 || uploadedFile) && !isGenerating
+  const getResourceIcon = (type: string) => {
+    switch (type) {
+      case "quiz": return "❓";
+      case "url": return "📄";
+      default: return "🔗";
+    }
+  }
+  
+  const handleResourceClick = (url: string) => {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  const toggleResourceExpansion = (id: string) => {
+    const newExpanded = new Set(expandedResources);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
+    }
+    setExpandedResources(newExpanded);
+  }
+
+  const canCreatePlanning = (prompt.trim().length > 0 || uploadedFile) && !isGenerating;
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 md:p-8">
@@ -143,166 +130,136 @@ export default function AcademicPlanner() {
           </p>
         </div>
 
-        {/* --- VISTA INICIAL PARA CREAR PLANIFICACIÓN --- */}
         {!hasGenerated ? (
           <Card className="mb-8 shadow-sm">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5" />
-                Crear Nueva Planificación
-              </CardTitle>
-              <CardDescription>
-                Describe tu curso o sube un archivo con el contenido para generar una planificación personalizada.
-              </CardDescription>
+              <CardTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5" />Crear Nueva Planificación</CardTitle>
+              <CardDescription>Describe tu curso o sube un archivo para generar una planificación.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="prompt" className="text-sm font-medium text-gray-700">
-                  Describe tu planificación académica
-                </label>
-                <Textarea
-                  id="prompt"
-                  placeholder="Ejemplo: UNIDAD I. Sistemas de Referencia y Vectores. Sistemas de coordenadas cartesianas y polares..."
-                  value={prompt}
-                  onChange={(e) => {
-                    setPrompt(e.target.value)
-                    if (e.target.value) setUploadedFile(null);
-                  }}
-                  className="min-h-[120px] resize-none"
-                  disabled={isGenerating}
-                />
-              </div>
-
-              <div className="flex items-center justify-center">
-                <div className="flex items-center gap-4 text-sm text-gray-500">
-                  <div className="h-px bg-gray-300 flex-1"></div>
-                  <span>o</span>
-                  <div className="h-px bg-gray-300 flex-1"></div>
-                </div>
-              </div>
-
+              <Textarea
+                id="prompt"
+                placeholder="Ejemplo: UNIDAD I. Sistemas de Referencia y Vectores..."
+                value={prompt}
+                onChange={(e) => {
+                  setPrompt(e.target.value);
+                  if (e.target.value) setUploadedFile(null);
+                }}
+                className="min-h-[120px] resize-none"
+                disabled={isGenerating}
+              />
+              <div className="flex items-center justify-center"><div className="flex items-center gap-4 text-sm text-gray-500"><div className="h-px bg-gray-300 flex-1"></div><span>o</span><div className="h-px bg-gray-300 flex-1"></div></div></div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isGenerating}
-                    className="flex items-center gap-2"
-                  >
-                    <Upload className="h-4 w-4" />
-                    Subir archivo
-                  </Button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".csv,.txt"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                  {uploadedFile && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <FileText className="h-4 w-4" />
-                      {uploadedFile.name}
-                    </div>
-                  )}
+                  <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isGenerating} className="flex items-center gap-2"><Upload className="h-4 w-4" />Subir archivo</Button>
+                  <input ref={fileInputRef} type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
+                  {uploadedFile && <div className="flex items-center gap-2 text-sm text-gray-600"><FileText className="h-4 w-4" />{uploadedFile.name}</div>}
                 </div>
-
-                <Button
-                  onClick={handleCreatePlanning}
-                  disabled={!canCreatePlanning}
-                  className="flex items-center gap-2"
-                >
-                  {isGenerating ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                      Generando...
-                    </>
-                  ) : (
-                    <>
-                      <Target className="h-4 w-4" />
-                      Crear planificación
-                    </>
-                  )}
+                <Button onClick={handleCreatePlanning} disabled={!canCreatePlanning} className="flex items-center gap-2">
+                  {isGenerating ? (<><div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>Generando...</>) : (<><Target className="h-4 w-4" />Crear planificación</>)}
                 </Button>
               </div>
             </CardContent>
           </Card>
         ) : (
-          // --- VISTA DE RESULTADOS ---
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Resultados de la Búsqueda</h2>
-                <p className="text-gray-600">{plans.length} resultados encontrados.</p>
+                <p className="text-gray-600">{planningResults.length} temas analizados.</p>
               </div>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setHasGenerated(false)
-                  setPlans([])
-                  setPrompt("")
-                  setUploadedFile(null)
-                }}
-              >
-                Nueva planificación
-              </Button>
+              <Button variant="outline" onClick={() => { setHasGenerated(false); setPlanningResults([]); setPrompt(""); setUploadedFile(null); }}>Nueva planificación</Button>
             </div>
 
-            {/* Iteramos sobre cada Plan devuelto por n8n */}
             <div className="space-y-8">
-              {plans && plans.map((plan, planIndex) => (
-                <Card key={planIndex} className="bg-white shadow-md rounded-lg">
-                  <CardHeader>
-                    <CardTitle className="text-lg font-semibold text-gray-800">
-                      Búsqueda Original:
-                    </CardTitle>
-                    <CardDescription className="italic">
-                      {`"${plan.chatInput_clean}"`}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <h3 className="text-md font-semibold mb-4 text-gray-700 border-t pt-4">Temas Sugeridos:</h3>
-                    <div className="space-y-4">
-                      {/* Iteramos sobre los temas de cada plan */}
-                      {plan.temas.map((tema, temaIndex) => {
-                        const cardId = `${planIndex}-${temaIndex}`;
-                        const isExpanded = expandedCards.has(cardId);
-                        return (
-                          <div key={cardId} className="border border-gray-200 rounded-lg p-4">
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <BrainCircuit className="h-5 w-5 text-indigo-500" />
-                                  <h4 className="font-semibold text-md">{tema.sectionname}</h4>
-                                  <Badge
-                                    className={`text-xs font-medium px-2 py-0.5 ${getSimilarityBadgeColor(tema.score)}`}
-                                  >
-                                    {Math.round(tema.score * 100)}% Similitud
-                                  </Badge>
-                                </div>
-                                {isExpanded && (
-                                  <p className="text-sm text-gray-600 mt-2">
-                                    {tema.sectionprofile}
-                                  </p>
-                                )}
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleCardExpansion(cardId)}
-                                className="h-8 w-8 p-0"
-                              >
-                                {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                              </Button>
+              {planningResults.map((result, planIndex) => {
+                const sortedSuggestions = [...result.suggestedsections].sort((a, b) => b.score - a.score);
+                const bestMatch = sortedSuggestions[0];
+                const otherSuggestions = sortedSuggestions.slice(1);
+
+                return (
+                  <Card key={planIndex} className="bg-white shadow-md rounded-lg overflow-hidden">
+                    <CardHeader className="bg-gray-50 border-b">
+                      <CardTitle className="text-md font-semibold text-gray-500 uppercase tracking-wide">Tema Requerido</CardTitle>
+                      <CardDescription className="text-base text-gray-800 pt-1">
+                        {result.requiredsection}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      {bestMatch && (
+                        <div className="mb-6">
+                          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2 mb-3"><Star className="h-5 w-5 text-yellow-500" />Asignación Principal</h3>
+                          <div className="border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h4 className="font-semibold text-md text-indigo-600">{bestMatch.sectionname}</h4>
+                              <Badge className={`text-xs font-medium px-2 py-0.5 ${getSimilarityBadgeColor(bestMatch.score)}`}>{Math.round(bestMatch.score * 100)}% Similitud</Badge>
                             </div>
+                            <p className="text-sm text-gray-600 mt-2 mb-4">{bestMatch.sectionprofile}</p>
+                             <div className="flex items-center gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => toggleResourceExpansion(`best-${planIndex}`)} className="h-8 w-8 p-0 text-indigo-600 hover:text-indigo-800">
+                                    {expandedResources.has(`best-${planIndex}`) ? <FolderOpen className="h-4 w-4" /> : <Folder className="h-4 w-4" />}
+                                </Button>
+                               <span className="text-sm font-medium text-indigo-600">{bestMatch.modulesdata.length} recursos disponibles</span>
+                            </div>
+                            {expandedResources.has(`best-${planIndex}`) && (
+                                <div className="mt-3 border-t pt-3 space-y-1">
+                                {bestMatch.modulesdata.map((resource, resIndex) => (
+                                    <button key={resIndex} onClick={() => handleResourceClick(resource.moduleUrl)} className="w-full text-left p-2 text-sm hover:bg-gray-50 rounded flex items-center gap-3 transition-colors">
+                                    <span className="text-lg">{getResourceIcon(resource.type)}</span>
+                                    <span className="flex-1 text-gray-700">{resource.moduleName}</span>
+                                    <ExternalLink className="h-4 w-4 text-gray-400" />
+                                    </button>
+                                ))}
+                                </div>
+                            )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                        </div>
+                      )}
+
+                      {otherSuggestions.length > 0 && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2 mb-3"><BrainCircuit className="h-5 w-5 text-gray-500" />Opciones Adicionales</h3>
+                           <div className="space-y-2">
+                            {otherSuggestions.map((tema, temaIndex) => {
+                                const cardId = `other-${planIndex}-${temaIndex}`;
+                                const isExpanded = expandedResources.has(cardId);
+                                return (
+                                <div key={cardId} className="border border-gray-200 rounded-lg p-3">
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-3 mb-1">
+                                            <h4 className="font-semibold text-md">{tema.sectionname}</h4>
+                                            <Badge className={`text-xs font-medium px-2 py-0.5 ${getSimilarityBadgeColor(tema.score)}`}>{Math.round(tema.score * 100)}% Similitud</Badge>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Button variant="ghost" size="sm" onClick={() => toggleResourceExpansion(cardId)} className="h-6 w-6 p-0 text-indigo-600 hover:text-indigo-800">
+                                                    {isExpanded ? <FolderOpen className="h-4 w-4" /> : <Folder className="h-4 w-4" />}
+                                                </Button>
+                                                <span className="text-xs text-gray-500">{tema.modulesdata.length} recursos</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {isExpanded && (
+                                        <div className="mt-3 border-t pt-3 space-y-1">
+                                        {tema.modulesdata.map((resource, resIndex) => (
+                                            <button key={resIndex} onClick={() => handleResourceClick(resource.moduleUrl)} className="w-full text-left p-2 text-sm hover:bg-gray-50 rounded flex items-center gap-3 transition-colors">
+                                            <span className="text-lg">{getResourceIcon(resource.type)}</span>
+                                            <span className="flex-1 text-gray-700">{resource.moduleName}</span>
+                                            <ExternalLink className="h-4 w-4 text-gray-400" />
+                                            </button>
+                                        ))}
+                                        </div>
+                                    )}
+                                </div>
+                                );
+                            })}
+                           </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </div>
         )}

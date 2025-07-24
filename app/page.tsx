@@ -31,52 +31,6 @@ const HoverTooltip = ({ children, content }: { children: React.ReactNode, conten
   );
 };
 
-// --- FIX: Componente ClickPopover simplificado y robusto ---
-const ClickPopover = ({ trigger, children, contentClassName }: { trigger: React.ReactNode, children: (close: () => void) => React.ReactNode, contentClassName?: string }) => {
-    const [open, setOpen] = useState(false);
-    const wrapperRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
-                setOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    const close = () => setOpen(false);
-
-    return (
-        <div ref={wrapperRef} className="relative inline-block text-left">
-            <div onClick={(e) => { e.stopPropagation(); setOpen(prev => !prev); }}>
-                {trigger}
-            </div>
-            {open && (
-                <div className={`origin-top-right absolute right-0 mt-2 w-auto rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20 ${contentClassName}`}>
-                    <div className="py-1">
-                         {React.Children.map(children(close), (child) => {
-                            if (React.isValidElement(child) && child.type === 'button') {
-                                const childProps = child.props as { onClick?: () => void };
-                                return React.cloneElement(child, {
-                                    onClick: () => {
-                                        if (childProps.onClick) {
-                                            childProps.onClick();
-                                        }
-                                        close();
-                                    }
-                                });
-                            }
-                            return child;
-                        })}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
-
 
 // --- INTERFACES ADAPTADAS A LA NUEVA ESTRUCTURA DE N8N Y LA UI ---
 
@@ -125,7 +79,12 @@ export default function AcademicPlanner() {
   const [tempThreshold, setTempThreshold] = useState(Math.round(0.595 * 100));
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isHelpPopoverOpen, setIsHelpPopoverOpen] = useState(false);
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  const [isThresholdMenuOpen, setIsThresholdMenuOpen] = useState(false);
+  
   const helpRef = useRef<HTMLDivElement>(null);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
+  const thresholdMenuRef = useRef<HTMLDivElement>(null);
 
   // Función para limpiar el prefijo del nombre de la sección
   const cleanSectionName = (name: string): string => {
@@ -330,6 +289,12 @@ export default function AcademicPlanner() {
       if (helpRef.current && !helpRef.current.contains(event.target as Node)) {
         setIsHelpPopoverOpen(false);
       }
+      if (filterMenuRef.current && !filterMenuRef.current.contains(event.target as Node)) {
+        setIsFilterMenuOpen(false);
+      }
+      if (thresholdMenuRef.current && !thresholdMenuRef.current.contains(event.target as Node)) {
+        setIsThresholdMenuOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
@@ -414,56 +379,55 @@ export default function AcademicPlanner() {
 
             {planningResults.length > 0 && (
               <div className="flex items-center justify-end gap-2">
-                 <ClickPopover
-                    contentClassName="w-64 p-2"
-                    trigger={
-                        <Button variant="outline" size="icon" className="h-8 w-8">
-                            <SlidersHorizontal className="h-4 w-4" />
-                        </Button>
-                    }
-                 >
-                    {(close) => (
-                        <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-between">
-                                <label htmlFor="threshold" className="text-sm font-medium whitespace-nowrap">Umbral de Asignación: {tempThreshold}%</label>
-                                <div className="relative" ref={helpRef}>
-                                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); setIsHelpPopoverOpen(prev => !prev); }}>
-                                        <HelpCircle className="h-4 w-4 text-gray-500" />
-                                    </Button>
-                                    {isHelpPopoverOpen && (
-                                        <div className="absolute bottom-full right-0 mb-2 w-56 bg-gray-800 text-white text-xs rounded-md p-2 shadow-lg z-20">
-                                            El coeficiente de similitud es una medida matemática que indica qué tan parecido es el contenido del tema requerido respecto al tema sugerido. Basado en observaciones empíricas, hemos determinado que un coeficiente de similitud de 60% representa un umbral razonable.
-                                        </div>
-                                    )}
+                 <div className="relative inline-block text-left" ref={thresholdMenuRef}>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setIsThresholdMenuOpen(prev => !prev)}>
+                        <SlidersHorizontal className="h-4 w-4" />
+                    </Button>
+                    {isThresholdMenuOpen && (
+                        <div className="origin-top-right absolute right-0 mt-2 w-64 p-2 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20">
+                            <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center justify-between">
+                                    <label htmlFor="threshold" className="text-sm font-medium whitespace-nowrap">Umbral de Asignación: {tempThreshold}%</label>
+                                    <div className="relative" ref={helpRef}>
+                                        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); setIsHelpPopoverOpen(prev => !prev); }}>
+                                            <HelpCircle className="h-4 w-4 text-gray-500" />
+                                        </Button>
+                                        {isHelpPopoverOpen && (
+                                            <div className="absolute bottom-full right-0 mb-2 w-56 bg-gray-800 text-white text-xs rounded-md p-2 shadow-lg z-20">
+                                                El coeficiente de similitud es una medida matemática que indica qué tan parecido es el contenido del tema requerido respecto al tema sugerido. Basado en observaciones empíricas, hemos determinado que un coeficiente de similitud de 60% representa un umbral razonable.
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
+                                <input
+                                    id="threshold"
+                                    type="range"
+                                    min="0"
+                                    max="100"
+                                    value={tempThreshold}
+                                    onChange={(e) => setTempThreshold(Number(e.target.value))}
+                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                    style={{ background: `linear-gradient(to right, #d1d5db ${tempThreshold}%, #3b82f6 ${tempThreshold}%)`}}
+                                />
+                                <Button className="w-full" size="sm" onClick={() => { setIsConfirmModalOpen(true); setIsThresholdMenuOpen(false); }}>Aplicar</Button>
                             </div>
-                            <input
-                                id="threshold"
-                                type="range"
-                                min="0"
-                                max="100"
-                                value={tempThreshold}
-                                onChange={(e) => setTempThreshold(Number(e.target.value))}
-                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                                style={{ background: `linear-gradient(to right, #d1d5db ${tempThreshold}%, #3b82f6 ${tempThreshold}%)`}}
-                            />
-                            <Button className="w-full" size="sm" onClick={() => { setIsConfirmModalOpen(true); close(); }}>Aplicar</Button>
                         </div>
                     )}
-                 </ClickPopover>
-                 <ClickPopover
-                    trigger={
-                        <Button variant="outline" size="icon" className="h-8 w-8">
-                            <Filter className="h-4 w-4" />
-                        </Button>
-                    }
-                 >
-                    {(close) => (<>
-                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => { setFilterStatus('all'); close(); }}>Todos</button>
-                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => { setFilterStatus('covered'); close(); }}>Cubiertos</button>
-                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => { setFilterStatus('pending'); close(); }}>Pendientes</button>
-                    </>)}
-                 </ClickPopover>
+                 </div>
+                 <div className="relative inline-block text-left" ref={filterMenuRef}>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setIsFilterMenuOpen(prev => !prev)}>
+                        <Filter className="h-4 w-4" />
+                    </Button>
+                    {isFilterMenuOpen && (
+                        <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20">
+                            <div className="py-1">
+                                <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => { setFilterStatus('all'); setIsFilterMenuOpen(false); }}>Todos</button>
+                                <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => { setFilterStatus('covered'); setIsFilterMenuOpen(false); }}>Cubiertos</button>
+                                <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => { setFilterStatus('pending'); setIsFilterMenuOpen(false); }}>Pendientes</button>
+                            </div>
+                        </div>
+                    )}
+                 </div>
                 <HoverTooltip content={<p>Expandir todo</p>}>
                     <Button variant="outline" size="icon" onClick={handleExpandAll} className="h-8 w-8">
                         <ChevronsDown className="h-4 w-4" />

@@ -38,8 +38,8 @@ const Tooltip = ({ children }: { children: React.ReactNode }) => {
 
 const TooltipTrigger = React.forwardRef<
   HTMLButtonElement,
-  React.HTMLAttributes<HTMLButtonElement>
->(({ children, ...props }, ref) => { // Corregido: 'asChild' eliminado
+  React.HTMLAttributes<HTMLButtonElement> & { asChild?: boolean }
+>(({ children, asChild = false, ...props }, ref) => {
   const { setOpen, triggerRef } = useTooltip();
   const internalRef = useRef<HTMLButtonElement>(null);
   const combinedRef = (node: HTMLButtonElement | null) => {
@@ -51,17 +51,33 @@ const TooltipTrigger = React.forwardRef<
     (triggerRef as React.MutableRefObject<HTMLButtonElement | null>).current = node;
     (internalRef as React.MutableRefObject<HTMLButtonElement | null>).current = node;
   };
-
+  
   const child = React.Children.only(children) as React.ReactElement;
+  
+  if (asChild) {
+      return React.cloneElement(child, {
+        ...props,
+        ...child.props,
+        ref: combinedRef,
+        onMouseEnter: () => setOpen(true),
+        onMouseLeave: () => setOpen(false),
+        onFocus: () => setOpen(true),
+        onBlur: () => setOpen(false),
+      });
+  }
 
-  return React.cloneElement(child, {
-    ...props,
-    ref: combinedRef,
-    onMouseEnter: () => setOpen(true),
-    onMouseLeave: () => setOpen(false),
-    onFocus: () => setOpen(true),
-    onBlur: () => setOpen(false),
-  });
+  return (
+    <button
+      ref={combinedRef}
+      {...props}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={() => setOpen(false)}
+    >
+      {children}
+    </button>
+  );
 });
 TooltipTrigger.displayName = "TooltipTrigger";
 
@@ -586,7 +602,7 @@ export default function AcademicPlanner() {
             )}
 
             <div className="space-y-4">
-              {filteredPlanningResults.map((result, _) => { // Corregido: 'index' no se usa
+              {filteredPlanningResults.map((result) => {
                 const planIndex = planningResults.findIndex(p => p.requiredsection === result.requiredsection);
                 const isExpanded = expandedCards.has(planIndex);
                 const isCovered = result.assignedSection !== null;

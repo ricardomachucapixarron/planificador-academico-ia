@@ -46,15 +46,32 @@ const ClickPopover = ({ trigger, content, contentClassName }: { trigger: React.R
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
+    const handleItemClick = (originalOnClick?: () => void) => {
+        return () => {
+            if (originalOnClick) {
+                originalOnClick();
+            }
+            setOpen(false);
+        };
+    };
+
     return (
         <div ref={wrapperRef} className="relative inline-block text-left">
             <div onClick={(e) => { e.stopPropagation(); setOpen(prev => !prev); }}>
                 {trigger}
             </div>
             {open && (
-                <div className={`origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20 ${contentClassName}`}>
-                    <div className="py-1" onClick={() => setOpen(false)}>
-                        {content}
+                <div className={`origin-top-right absolute right-0 mt-2 w-auto rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20 ${contentClassName}`}>
+                    <div className="py-1">
+                         {React.Children.map(content, (child) => {
+                            if (React.isValidElement(child) && child.type === 'button') {
+                                const childProps = child.props as { onClick?: () => void };
+                                return React.cloneElement(child, {
+                                    onClick: handleItemClick(childProps.onClick)
+                                });
+                            }
+                            return child;
+                        })}
                     </div>
                 </div>
             )}
@@ -407,7 +424,7 @@ export default function AcademicPlanner() {
                         </Button>
                     }
                     content={
-                        <div className="space-y-2">
+                        <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-between">
                                 <label htmlFor="threshold" className="text-sm font-medium">Umbral de Asignación: {tempThreshold}%</label>
                                 <div className="relative" ref={helpRef}>

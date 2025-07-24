@@ -7,11 +7,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { Upload, FileText, BookOpen, Target, BrainCircuit, Star, ExternalLink, Folder, FolderOpen, CheckCircle, AlertCircle, X, Check, ChevronDown, ChevronUp, FilePenLine, Link, ArrowLeft, ArrowRight, ChevronsDown, ChevronsUp, ArrowUp, Filter, SlidersHorizontal, HelpCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
-// --- FIX: Definición local del componente Tooltip ---
+// --- FIX: Definición local del componente Tooltip (simplificado para hover) ---
 const TooltipContext = React.createContext<{
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  triggerRef: React.RefObject<HTMLButtonElement | null>;
+  triggerRef: React.RefObject<HTMLElement | null>;
 } | null>(null);
 
 const useTooltip = () => {
@@ -24,7 +24,7 @@ const useTooltip = () => {
 
 const TooltipProvider = ({ children }: { children: React.ReactNode }) => {
   const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
   return (
     <TooltipContext.Provider value={{ open, setOpen, triggerRef }}>
       {children}
@@ -37,51 +37,22 @@ const Tooltip = ({ children }: { children: React.ReactNode }) => {
 };
 
 const TooltipTrigger = React.forwardRef<
-  HTMLButtonElement,
-  React.HTMLAttributes<HTMLButtonElement> & { asChild?: boolean }
->(({ children, asChild = false, ...props }, ref) => {
+  HTMLElement,
+  React.HTMLAttributes<HTMLElement>
+>(({ children, ...props }, ref) => {
   const { setOpen, triggerRef } = useTooltip();
-  const internalRef = useRef<HTMLButtonElement>(null);
   
-  const combinedRef = (node: HTMLButtonElement | null) => {
+  const combinedRef = (node: HTMLElement | null) => {
     if (typeof ref === 'function') {
       ref(node);
     } else if (ref) {
       ref.current = node;
     }
-    (triggerRef as React.MutableRefObject<HTMLButtonElement | null>).current = node;
-    (internalRef as React.MutableRefObject<HTMLButtonElement | null>).current = node;
+    (triggerRef as React.MutableRefObject<HTMLElement | null>).current = node;
   };
-  
-  const child = React.Children.only(children) as React.ReactElement;
-  
-  if (asChild) {
-      const childProps = child.props || {};
-      return React.cloneElement(child, {
-        ...props,
-        ...childProps,
-        ref: combinedRef,
-        onMouseEnter: (e: React.MouseEvent) => {
-            setOpen(true);
-            if (typeof childProps.onMouseEnter === 'function') childProps.onMouseEnter(e);
-        },
-        onMouseLeave: (e: React.MouseEvent) => {
-            setOpen(false);
-            if (typeof childProps.onMouseLeave === 'function') childProps.onMouseLeave(e);
-        },
-        onFocus: (e: React.FocusEvent) => {
-            setOpen(true);
-            if (typeof childProps.onFocus === 'function') childProps.onFocus(e);
-        },
-        onBlur: (e: React.FocusEvent) => {
-            setOpen(false);
-            if (typeof childProps.onBlur === 'function') childProps.onBlur(e);
-        }
-      } as React.HTMLAttributes<HTMLButtonElement>);
-  }
 
   return (
-    <button
+    <span
       ref={combinedRef}
       {...props}
       onMouseEnter={() => setOpen(true)}
@@ -90,10 +61,11 @@ const TooltipTrigger = React.forwardRef<
       onBlur={() => setOpen(false)}
     >
       {children}
-    </button>
+    </span>
   );
 });
 TooltipTrigger.displayName = "TooltipTrigger";
+
 
 const TooltipContent = React.forwardRef<
   HTMLDivElement,
@@ -593,7 +565,7 @@ export default function AcademicPlanner() {
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <Tooltip>
-                  <TooltipTrigger asChild>
+                  <TooltipTrigger>
                     <Button variant="outline" size="icon" onClick={handleExpandAll} className="h-8 w-8">
                       <ChevronsDown className="h-4 w-4" />
                     </Button>
@@ -603,7 +575,7 @@ export default function AcademicPlanner() {
                   </TooltipContent>
                 </Tooltip>
                 <Tooltip>
-                  <TooltipTrigger asChild>
+                  <TooltipTrigger>
                     <Button variant="outline" size="icon" onClick={handleCollapseAll} className="h-8 w-8">
                       <ChevronsUp className="h-4 w-4" />
                     </Button>

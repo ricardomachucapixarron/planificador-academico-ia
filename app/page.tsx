@@ -7,179 +7,67 @@ import { Textarea } from "@/components/ui/textarea"
 import { Upload, FileText, BookOpen, Target, BrainCircuit, Star, ExternalLink, Folder, FolderOpen, CheckCircle, AlertCircle, X, Check, ChevronDown, ChevronUp, FilePenLine, Link, ArrowLeft, ArrowRight, ChevronsDown, ChevronsUp, ArrowUp, Filter, SlidersHorizontal, HelpCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
-// --- FIX: Definición local del componente Tooltip (simplificado para hover) ---
-const TooltipContext = React.createContext<{
-  open: boolean;
-  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  triggerRef: React.RefObject<HTMLElement | null>;
-} | null>(null);
-
-const useTooltip = () => {
-  const context = React.useContext(TooltipContext);
-  if (!context) {
-    throw new Error("useTooltip must be used within a TooltipProvider");
-  }
-  return context;
-};
-
-const TooltipProvider = ({ children }: { children: React.ReactNode }) => {
+// --- FIX: Componente HoverTooltip simplificado y robusto ---
+const HoverTooltip = ({ children, content, className }: { children: React.ReactNode, content: React.ReactNode, className?: string }) => {
   const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLElement | null>(null);
-  return (
-    <TooltipContext.Provider value={{ open, setOpen, triggerRef }}>
-      {children}
-    </TooltipContext.Provider>
-  );
-};
-
-const Tooltip = ({ children }: { children: React.ReactNode }) => {
-  return <TooltipProvider>{children}</TooltipProvider>;
-};
-
-const TooltipTrigger = React.forwardRef<
-  HTMLElement,
-  React.HTMLAttributes<HTMLElement>
->(({ children, ...props }, ref) => {
-  const { setOpen, triggerRef } = useTooltip();
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   
-  const combinedRef = (node: HTMLElement | null) => {
-    if (typeof ref === 'function') {
-      ref(node);
-    } else if (ref) {
-      ref.current = node;
-    }
-    (triggerRef as React.MutableRefObject<HTMLElement | null>).current = node;
-  };
-
   return (
     <span
-      ref={combinedRef}
-      {...props}
+      ref={triggerRef}
+      className="relative inline-flex"
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
       onFocus={() => setOpen(true)}
       onBlur={() => setOpen(false)}
     >
       {children}
+      {open && (
+        <div
+          ref={contentRef}
+          className={`z-50 px-3 py-1.5 text-sm bg-gray-900 text-white rounded-md shadow-lg absolute top-full mt-2 left-1/2 -translate-x-1/2 ${className}`}
+        >
+          {content}
+        </div>
+      )}
     </span>
   );
-});
-TooltipTrigger.displayName = "TooltipTrigger";
-
-
-const TooltipContent = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ children, className, ...props }, ref) => {
-  const { open, triggerRef } = useTooltip();
-  const [position, setPosition] = useState({ top: 0, left: 0 });
-
-  React.useEffect(() => {
-    if (open && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      setPosition({
-        top: rect.bottom + window.scrollY + 5,
-        left: rect.left + window.scrollX + rect.width / 2,
-      });
-    }
-  }, [open, triggerRef]);
-
-  if (!open) return null;
-
-  return (
-    <div
-      ref={ref}
-      style={{
-        position: 'absolute',
-        top: position.top,
-        left: position.left,
-        transform: 'translateX(-50%)',
-      }}
-      className={`z-50 px-3 py-1.5 text-sm bg-gray-900 text-white rounded-md shadow-md animate-in fade-in-0 zoom-in-95 ${className}`}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-});
-TooltipContent.displayName = "TooltipContent";
-
-// --- FIX: Definición local del componente DropdownMenu ---
-const DropdownMenuContext = React.createContext<{
-  open: boolean;
-  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
-} | null>(null);
-
-const useDropdownMenu = () => {
-    const context = React.useContext(DropdownMenuContext);
-    if (!context) {
-        throw new Error("useDropdownMenu must be used within a DropdownMenu");
-    }
-    return context;
 };
 
-const DropdownMenu = ({ children }: { children: React.ReactNode }) => {
+// --- FIX: Componente ClickPopover simplificado y robusto ---
+const ClickPopover = ({ trigger, content, contentClassName }: { trigger: React.ReactNode, content: React.ReactNode, contentClassName?: string }) => {
     const [open, setOpen] = useState(false);
-    return (
-        <DropdownMenuContext.Provider value={{ open, setOpen }}>
-            <div className="relative inline-block text-left">{children}</div>
-        </DropdownMenuContext.Provider>
-    );
-};
-
-const DropdownMenuTrigger = ({ children }: { children: React.ReactNode }) => {
-    const { open, setOpen } = useDropdownMenu();
-    const child = React.Children.only(children) as React.ReactElement;
-    return React.cloneElement(child, {
-        onClick: (e: React.MouseEvent) => {
-            e.stopPropagation();
-            setOpen(!open);
-        },
-    });
-};
-
-const DropdownMenuContent = ({ children, className }: { children: React.ReactNode, className?: string }) => {
-    const { open, setOpen } = useDropdownMenu();
-    const menuRef = useRef<HTMLDivElement>(null);
+    const wrapperRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
                 setOpen(false);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, [setOpen]);
-
-    if (!open) return null;
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     return (
-        <div ref={menuRef} className={`origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20 ${className}`}>
-            <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-                {children}
+        <div ref={wrapperRef} className="relative inline-block text-left">
+            <div onClick={(e) => { e.stopPropagation(); setOpen(prev => !prev); }}>
+                {trigger}
             </div>
+            {open && (
+                <div className={`origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20 ${contentClassName}`}>
+                    <div className="py-1" onClick={(e) => { if (!(e.target instanceof HTMLButtonElement && e.target.type === 'button')) e.stopPropagation(); }}>
+                        {React.Children.map(content, (child) => 
+                            React.isValidElement(child) ? React.cloneElement(child, { onClick: () => setOpen(false) } as any) : child
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
-const DropdownMenuItem = ({ children, onClick }: { children: React.ReactNode, onClick: () => void }) => {
-    const { setOpen } = useDropdownMenu();
-    return (
-        <button
-            onClick={() => {
-                onClick();
-                setOpen(false);
-            }}
-            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-            role="menuitem"
-        >
-            {children}
-        </button>
-    );
-};
 
 // --- INTERFACES ADAPTADAS A LA NUEVA ESTRUCTURA DE N8N Y LA UI ---
 
@@ -517,13 +405,14 @@ export default function AcademicPlanner() {
 
             {planningResults.length > 0 && (
               <div className="flex items-center justify-end gap-2">
-                 <DropdownMenu>
-                    <DropdownMenuTrigger>
+                 <ClickPopover
+                    contentClassName="w-64 p-2"
+                    trigger={
                         <Button variant="outline" size="icon" className="h-8 w-8">
                             <SlidersHorizontal className="h-4 w-4" />
                         </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-64 p-2">
+                    }
+                    content={
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <label htmlFor="threshold" className="text-sm font-medium">Umbral de Asignación: {tempThreshold}%</label>
@@ -550,40 +439,30 @@ export default function AcademicPlanner() {
                             />
                             <Button className="w-full" size="sm" onClick={() => setIsConfirmModalOpen(true)}>Aplicar</Button>
                         </div>
-                    </DropdownMenuContent>
-                 </DropdownMenu>
-                 <DropdownMenu>
-                  <DropdownMenuTrigger>
-                    <Button variant="outline" size="icon" className="h-8 w-8">
-                      <Filter className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => setFilterStatus('all')}>Todos</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setFilterStatus('covered')}>Cubiertos</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setFilterStatus('pending')}>Pendientes</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Tooltip>
-                  <TooltipTrigger>
+                    }
+                 />
+                 <ClickPopover
+                    trigger={
+                        <Button variant="outline" size="icon" className="h-8 w-8">
+                            <Filter className="h-4 w-4" />
+                        </Button>
+                    }
+                    content={<>
+                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setFilterStatus('all')}>Todos</button>
+                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setFilterStatus('covered')}>Cubiertos</button>
+                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setFilterStatus('pending')}>Pendientes</button>
+                    </>}
+                 />
+                <HoverTooltip content={<p>Expandir todo</p>}>
                     <Button variant="outline" size="icon" onClick={handleExpandAll} className="h-8 w-8">
-                      <ChevronsDown className="h-4 w-4" />
+                        <ChevronsDown className="h-4 w-4" />
                     </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Expandir todo</p>
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger>
+                </HoverTooltip>
+                <HoverTooltip content={<p>Colapsar todo</p>}>
                     <Button variant="outline" size="icon" onClick={handleCollapseAll} className="h-8 w-8">
-                      <ChevronsUp className="h-4 w-4" />
+                        <ChevronsUp className="h-4 w-4" />
                     </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Colapsar todo</p>
-                  </TooltipContent>
-                </Tooltip>
+                </HoverTooltip>
               </div>
             )}
 

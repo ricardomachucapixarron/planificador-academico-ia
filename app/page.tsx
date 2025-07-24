@@ -56,25 +56,34 @@ const TooltipTrigger = React.forwardRef<
   const child = React.Children.only(children) as React.ReactElement;
   
   if (asChild) {
+      const childProps = child.props as { [key: string]: unknown };
       return React.cloneElement(child, {
         ...props,
-        ...(child.props as any), // FIX: Cast to any to resolve spread type error
+        ...childProps,
         ref: combinedRef,
         onMouseEnter: (e: React.MouseEvent) => {
             setOpen(true);
-            child.props.onMouseEnter?.(e);
+            if (typeof childProps.onMouseEnter === 'function') {
+                childProps.onMouseEnter(e);
+            }
         },
         onMouseLeave: (e: React.MouseEvent) => {
             setOpen(false);
-            child.props.onMouseLeave?.(e);
+            if (typeof childProps.onMouseLeave === 'function') {
+                childProps.onMouseLeave(e);
+            }
         },
         onFocus: (e: React.FocusEvent) => {
             setOpen(true);
-            child.props.onFocus?.(e);
+            if (typeof childProps.onFocus === 'function') {
+                childProps.onFocus(e);
+            }
         },
         onBlur: (e: React.FocusEvent) => {
             setOpen(false);
-            child.props.onBlur?.(e);
+            if (typeof childProps.onBlur === 'function') {
+                childProps.onBlur(e);
+            }
         }
       });
   }

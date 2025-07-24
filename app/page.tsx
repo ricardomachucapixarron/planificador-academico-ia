@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 const TooltipContext = React.createContext<{
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  triggerRef: React.RefObject<HTMLButtonElement | null>; // Corregido para aceptar null
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
 } | null>(null);
 
 const useTooltip = () => {
@@ -42,6 +42,7 @@ const TooltipTrigger = React.forwardRef<
 >(({ children, asChild = false, ...props }, ref) => {
   const { setOpen, triggerRef } = useTooltip();
   const internalRef = useRef<HTMLButtonElement>(null);
+  
   const combinedRef = (node: HTMLButtonElement | null) => {
     if (typeof ref === 'function') {
       ref(node);
@@ -59,10 +60,22 @@ const TooltipTrigger = React.forwardRef<
         ...props,
         ...child.props,
         ref: combinedRef,
-        onMouseEnter: () => setOpen(true),
-        onMouseLeave: () => setOpen(false),
-        onFocus: () => setOpen(true),
-        onBlur: () => setOpen(false),
+        onMouseEnter: (e: React.MouseEvent) => {
+            setOpen(true);
+            child.props.onMouseEnter?.(e);
+        },
+        onMouseLeave: (e: React.MouseEvent) => {
+            setOpen(false);
+            child.props.onMouseLeave?.(e);
+        },
+        onFocus: (e: React.FocusEvent) => {
+            setOpen(true);
+            child.props.onFocus?.(e);
+        },
+        onBlur: (e: React.FocusEvent) => {
+            setOpen(false);
+            child.props.onBlur?.(e);
+        }
       });
   }
 

@@ -90,12 +90,20 @@ export default function PromptInputCard({
         setTools({ ...tools, [key]: value });
     };
 
+    // --- FIX: Se cambia el <button> por un <span> para evitar anidación ilegal de botones y errores de hidratación ---
     const RemovableBadge = ({ children, onRemove }: { children: React.ReactNode, onRemove: () => void }) => (
         <div className="flex items-center gap-1.5 pl-2 pr-1 py-1 text-xs bg-gray-700 text-gray-300 rounded-md">
             {children}
-            <button onClick={(e) => { e.stopPropagation(); onRemove(); }} className="rounded-full hover:bg-gray-600 p-0.5 focus:outline-none focus:ring-2 focus:ring-gray-500">
+            <span 
+                onClick={(e) => { e.stopPropagation(); onRemove(); }} 
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onRemove(); } }}
+                className="rounded-full hover:bg-gray-600 p-0.5 focus:outline-none focus:ring-2 focus:ring-gray-500 cursor-pointer"
+                role="button"
+                tabIndex={0}
+                aria-label="Remove item"
+            >
                 <X className="h-3 w-3" />
-            </button>
+            </span>
         </div>
     );
 

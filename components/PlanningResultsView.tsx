@@ -4,10 +4,15 @@ import React, { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { BrainCircuit, Star, ExternalLink, Folder, FolderOpen, CheckCircle, AlertCircle, X, Check, ChevronDown, ChevronUp, FilePenLine, Link, ArrowLeft, ArrowRight, ChevronsDown, ChevronsUp, ArrowUp, Filter, SlidersHorizontal, HelpCircle, BookOpen, ChevronLeft, ChevronRight, PlusCircle, Lightbulb } from "lucide-react"
+import { BrainCircuit, Star, ExternalLink, Folder, FolderOpen, CheckCircle, AlertCircle, X, Check, ChevronDown, ChevronUp, FilePenLine, Link, ArrowLeft, ArrowRight, ChevronsDown, ChevronsUp, ArrowUp, Filter, SlidersHorizontal, HelpCircle, BookOpen, ChevronLeft, ChevronRight, PlusCircle, Lightbulb, RefreshCw } from "lucide-react"
 
-// --- FIX: Componente HoverTooltip simplificado y robusto ---
-const HoverTooltip = ({ children, content }: { children: React.ReactNode, content: React.ReactNode }) => {
+// --- FIX: Se define la interfaz de props para mayor claridad y para resolver el error de parsing ---
+interface HoverTooltipProps {
+  children: React.ReactNode;
+  content: React.ReactNode;
+}
+
+function HoverTooltip({ children, content }: HoverTooltipProps) {
   const [open, setOpen] = useState(false);
   
   return (
@@ -70,7 +75,7 @@ interface PlanningResult {
 }
 
 // --- COMPONENTE DE LA PÁGINA DE RESULTADOS ---
-export default function PlanningResultsPage({ initialPlanningResults, isGeneratingData }: { initialPlanningResults: PlanningResult[], isGeneratingData: boolean }) {
+export default function PlanningResultsView({ initialPlanningResults, isGeneratingData }: { initialPlanningResults: PlanningResult[], isGeneratingData: boolean }) {
   const [planningResults, setPlanningResults] = useState(initialPlanningResults);
   const [isGenerating, setIsGenerating] = useState(isGeneratingData);
   
@@ -80,19 +85,12 @@ export default function PlanningResultsPage({ initialPlanningResults, isGenerati
   const [currentSuggestionIndexes, setCurrentSuggestionIndexes] = useState<{ [key: number]: number }>({});
   const [expandedTags, setExpandedTags] = useState<Set<string>>(new Set());
   const [filterStatus, setFilterStatus] = useState<'all' | 'covered' | 'pending'>('all');
-  const [assignmentThreshold, setAssignmentThreshold] = useState(0.595);
-  const [tempThreshold, setTempThreshold] = useState(Math.round(0.595 * 100));
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [isHelpPopoverOpen, setIsHelpPopoverOpen] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
-  const [isThresholdMenuOpen, setIsThresholdMenuOpen] = useState(false);
   const [expandedAdditionalOptions, setExpandedAdditionalOptions] = useState<Set<number>>(new Set());
   const [hoveredPlaceholderIndex, setHoveredPlaceholderIndex] = useState<number | null>(null);
   const [popupContent, setPopupContent] = useState<{text: string, id: number} | null>(null);
   
-  const helpRef = useRef<HTMLDivElement>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
-  const thresholdMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!popupContent) return;
@@ -205,17 +203,23 @@ export default function PlanningResultsPage({ initialPlanningResults, isGenerati
     });
   };
   
-  const handleApplyThreshold = () => {
-    const newThreshold = tempThreshold / 100;
-    setAssignmentThreshold(newThreshold);
+  const handleAutoAssign = () => {
     const reprocessedResults = planningResults.map(result => {
-        const sortedSuggestions = result.suggestedsections;
-        const topSuggestion = sortedSuggestions[0] || null;
-        const assigned = (topSuggestion && topSuggestion.score >= newThreshold && topSuggestion.coverage_label === 'Cubierto') ? topSuggestion : null;
-        return { ...result, assignedSection: assigned };
+        const fullyCoveredSuggestions = result.suggestedsections.filter(
+            s => s.coverage_label === 'Cubierto'
+        );
+
+        let assignedSection: SuggestedSection | null = null;
+
+        if (fullyCoveredSuggestions.length > 0) {
+            assignedSection = fullyCoveredSuggestions.reduce((best, current) => 
+                current.score > best.score ? current : best
+            );
+        }
+        
+        return { ...result, assignedSection };
     });
     setPlanningResults(reprocessedResults);
-    setIsConfirmModalOpen(false);
   };
 
   const handleExpandAll = () => setExpandedCards(new Set(planningResults.map((_, index) => index)));
@@ -311,41 +315,11 @@ export default function PlanningResultsPage({ initialPlanningResults, isGenerati
 
                     {planningResults.length > 0 && (
                       <div className="flex items-center justify-end gap-2">
-                         <div className="relative inline-block text-left" ref={thresholdMenuRef}>
-                            <Button variant="outline" size="icon" className="h-8 w-8 bg-gray-700 text-gray-300 hover:bg-gray-600 border-gray-600" onClick={() => setIsThresholdMenuOpen(prev => !prev)}>
-                                <SlidersHorizontal className="h-4 w-4" />
+                         <HoverTooltip content={<p>Re-asignar Automáticamente</p>}>
+                            <Button variant="outline" size="icon" className="h-8 w-8 bg-gray-700 text-gray-300 hover:bg-gray-600 border-gray-600" onClick={handleAutoAssign}>
+                                <RefreshCw className="h-4 w-4" />
                             </Button>
-                            {isThresholdMenuOpen && (
-                                <div className="origin-top-right absolute right-0 mt-2 w-64 p-2 rounded-md shadow-lg bg-gray-800 border border-gray-700 ring-1 ring-black ring-opacity-5 focus:outline-none z-20">
-                                    <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                                        <div className="flex items-center justify-between">
-                                            <label htmlFor="threshold" className="text-sm font-medium whitespace-nowrap text-gray-200">Umbral de Asignación: {tempThreshold}%</label>
-                                            <div className="relative" ref={helpRef}>
-                                                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); setIsHelpPopoverOpen(prev => !prev); }}>
-                                                    <HelpCircle className="h-4 w-4 text-gray-400" />
-                                                </Button>
-                                                {isHelpPopoverOpen && (
-                                                    <div className="absolute bottom-full right-0 mb-2 w-56 bg-gray-900 text-white text-xs rounded-md p-2 shadow-lg z-20">
-                                                        El coeficiente de similitud es una medida matemática que indica qué tan parecido es el contenido del tema requerido respecto al tema sugerido. Basado en observaciones empíricas, hemos determinado que un coeficiente de similitud de 60% representa un umbral razonable.
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <input
-                                            id="threshold"
-                                            type="range"
-                                            min="0"
-                                            max="100"
-                                            value={tempThreshold}
-                                            onChange={(e) => setTempThreshold(Number(e.target.value))}
-                                            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                                            style={{ background: `linear-gradient(to right, #4f46e5 ${tempThreshold}%, #4b5563 ${tempThreshold}%)`}}
-                                        />
-                                        <Button className="w-full" size="sm" onClick={() => { setIsConfirmModalOpen(true); setIsThresholdMenuOpen(false); }}>Aplicar</Button>
-                                    </div>
-                                </div>
-                            )}
-                         </div>
+                        </HoverTooltip>
                          <div className="relative inline-block text-left" ref={filterMenuRef}>
                             <Button variant="outline" size="icon" className="h-8 w-8 bg-gray-700 text-gray-300 hover:bg-gray-600 border-gray-600" onClick={() => setIsFilterMenuOpen(prev => !prev)}>
                                 <Filter className="h-4 w-4" />
@@ -390,7 +364,7 @@ export default function PlanningResultsPage({ initialPlanningResults, isGenerati
 
                               return (
                                 <React.Fragment key={planIndex}>
-                                  <div className={`transition-all duration-500 ${isExpanded ? 'w-full' : 'max-w-3xl mx-auto'}`}>
+                                  <div className={`transition-all duration-500 ${isExpanded ? 'w-full' : `max-w-lg ${index % 2 === 0 ? 'mr-auto' : 'ml-auto'}`}`}>
                                     <Card className="bg-gray-800 border-gray-700 text-gray-200 rounded-2xl">
                                       <CardHeader className={`cursor-pointer hover:bg-gray-700/50 rounded-t-2xl ${!isExpanded ? 'rounded-b-2xl' : ''}`} onClick={() => toggleCardExpansion(planIndex)}>
                                         <div className="flex items-start justify-between gap-4">
@@ -671,18 +645,6 @@ export default function PlanningResultsPage({ initialPlanningResults, isGenerati
                 </>
             )}
         </div>
-        {isConfirmModalOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
-                    <h2 className="text-lg font-semibold mb-4 text-gray-100">Confirmar Cambio</h2>
-                    <p className="text-gray-300">¿Seguro que desea aplicar este cambio a todos los temas?</p>
-                    <div className="flex justify-end gap-4 mt-6">
-                        <Button variant="ghost" onClick={() => setIsConfirmModalOpen(false)}>Cancelar</Button>
-                        <Button onClick={handleApplyThreshold}>Aceptar</Button>
-                    </div>
-                </div>
-            </div>
-        )}
       </div>
     </div>
   );

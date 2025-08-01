@@ -649,3 +649,4 @@ export default function PlanningResultsView({ initialPlanningResults, isGenerati
     </div>
   );
 }
+

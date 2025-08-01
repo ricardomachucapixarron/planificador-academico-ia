@@ -13,7 +13,6 @@ interface IndicadorDesglosado {
   contexto: { texto: string };
 }
 
-// --- CAMBIO: Se añade justificacion_pedagogica ---
 interface Indicator {
     id: string;
     title: string;
@@ -135,7 +134,6 @@ const AnnotatedText = ({ introduction, onAnnotationClick }: { introduction: Intr
 export default function ProposedPlanReview({ conversation, onConversationUpdate, onAnnotationClick, highlightedCard, isGeneratingData }: ProposedPlanReviewProps) {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [loadingMessage, setLoadingMessage] = useState('Analizando la instrucción...');
-    // --- CAMBIO: Estado para la justificación visible ---
     const [visibleJustification, setVisibleJustification] = useState<string | null>(null);
 
     useEffect(() => {
@@ -150,16 +148,13 @@ export default function ProposedPlanReview({ conversation, onConversationUpdate,
         }
     }, [isGeneratingData]);
 
-    // --- CAMBIO: Efecto para cerrar la justificación ---
     useEffect(() => {
         if (!visibleJustification) return;
 
-        // Cierra después de 10 segundos
         const timer = setTimeout(() => {
             setVisibleJustification(null);
         }, 10000);
 
-        // Cierra al hacer clic en cualquier parte
         const handleClickOutside = () => {
             setVisibleJustification(null);
         };
@@ -202,8 +197,9 @@ export default function ProposedPlanReview({ conversation, onConversationUpdate,
         const newIndicatorId = `${groupIdx + 1}.${group.indicators.length + 1}`;
         group.indicators.push({
             id: newIndicatorId,
-            title: `Nuevo Indicador de Logro`,
+            title: `Nuevo Indicador de Nivelación`,
             texto_contenido: "Nuevo Contenido del Syllabus",
+            nombre_modulo: "Nuevo Contenido de Nivelación",
             description: "",
             status: 'original',
             isManual: true,
@@ -217,9 +213,8 @@ export default function ProposedPlanReview({ conversation, onConversationUpdate,
         onConversationUpdate(newConversation);
     };
     
-    // --- CAMBIO: Handler para el clic en el ícono de justificación ---
     const handleJustificationClick = (e: React.MouseEvent, indicatorId: string) => {
-        e.stopPropagation(); // Evita que el listener del documento se cierre inmediatamente
+        e.stopPropagation(); 
         setVisibleJustification(prevId => prevId === indicatorId ? null : indicatorId);
     };
 
@@ -273,8 +268,9 @@ export default function ProposedPlanReview({ conversation, onConversationUpdate,
                                           <table className="w-full text-sm text-left">
                                               <thead className="bg-gray-700/50">
                                                   <tr>
-                                                      <th scope="col" className="px-4 py-2 font-semibold text-gray-400 uppercase tracking-wider">Indicador de Logro</th>
                                                       <th scope="col" className="px-4 py-2 font-semibold text-gray-400 uppercase tracking-wider">Contenido Syllabus</th>
+                                                      <th scope="col" className="px-4 py-2 font-semibold text-gray-400 uppercase tracking-wider">Contenido Nivelación</th>
+                                                      <th scope="col" className="px-4 py-2 font-semibold text-gray-400 uppercase tracking-wider">Indicador de Nivelación</th>
                                                       <th scope="col" className="relative px-4 py-2 w-20 text-center font-semibold text-gray-400 uppercase tracking-wider">Acciones</th>
                                                   </tr>
                                               </thead>
@@ -282,13 +278,7 @@ export default function ProposedPlanReview({ conversation, onConversationUpdate,
                                                   {group.indicators.filter(ind => ind.status !== 'deleted').map((indicator, indicatorIdx) => (
                                                     <React.Fragment key={indicator.id}>
                                                       <tr id={`review-card-${indicator.id}`} className={`border-b border-gray-700 ${highlightedCard === `review-card-${indicator.id}` ? 'bg-blue-900/30' : ''}`}>
-                                                          <td className="px-4 py-3 align-top w-1/2">
-                                                              <div className="flex items-start gap-2">
-                                                                  <span className="font-mono text-xs text-gray-500 pt-1">{indicator.id}</span>
-                                                                  <EditableField id={`title-${indicator.id}`} value={indicator.title} onSave={(value) => handleUpdate(groupIdx, indicatorIdx, 'title', value)} isTitle editingId={editingId} setEditingId={setEditingId} />
-                                                              </div>
-                                                          </td>
-                                                          <td className="px-4 py-3 align-top w-1/2">
+                                                          <td className="px-4 py-3 align-top w-1/3">
                                                               <EditableField 
                                                                 id={`content-${indicator.id}`} 
                                                                 value={indicator.texto_contenido || ''} 
@@ -298,8 +288,23 @@ export default function ProposedPlanReview({ conversation, onConversationUpdate,
                                                                 className="text-sm text-gray-300"
                                                               />
                                                           </td>
+                                                          <td className="px-4 py-3 align-top w-1/3">
+                                                              <EditableField 
+                                                                id={`module-${indicator.id}`} 
+                                                                value={indicator.nombre_modulo || ''} 
+                                                                onSave={(value) => handleUpdate(groupIdx, indicatorIdx, 'nombre_modulo', value)} 
+                                                                editingId={editingId} 
+                                                                setEditingId={setEditingId}
+                                                                className="text-sm text-gray-300"
+                                                              />
+                                                          </td>
+                                                          <td className="px-4 py-3 align-top w-1/3">
+                                                              <div className="flex items-start gap-2">
+                                                                  <span className="font-mono text-xs text-gray-500 pt-1">{indicator.id}</span>
+                                                                  <EditableField id={`title-${indicator.id}`} value={indicator.title} onSave={(value) => handleUpdate(groupIdx, indicatorIdx, 'title', value)} isTitle editingId={editingId} setEditingId={setEditingId} />
+                                                              </div>
+                                                          </td>
                                                           <td className="px-4 py-3 align-top text-center">
-                                                              {/* --- CAMBIO: Botón para mostrar justificación --- */}
                                                               {indicator.justificacion_pedagogica && (
                                                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => handleJustificationClick(e, indicator.id)}>
                                                                     <Lightbulb className="h-4 w-4 text-yellow-400" />
@@ -308,10 +313,9 @@ export default function ProposedPlanReview({ conversation, onConversationUpdate,
                                                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteIndicator(groupIdx, indicatorIdx)}><X className="h-4 w-4 text-gray-400 hover:text-red-500" /></Button>
                                                           </td>
                                                       </tr>
-                                                      {/* --- CAMBIO: Fila condicional para la justificación --- */}
                                                       {visibleJustification === indicator.id && (
                                                         <tr className="bg-gray-900/50">
-                                                            <td colSpan={3} className="p-4 text-sm text-gray-300 border-x border-b border-gray-700" onClick={(e) => e.stopPropagation()}>
+                                                            <td colSpan={4} className="p-4 text-sm text-gray-300 border-x border-b border-gray-700" onClick={(e) => e.stopPropagation()}>
                                                                 <p><strong className="font-semibold text-blue-400">Justificación Pedagógica:</strong> {indicator.justificacion_pedagogica}</p>
                                                             </td>
                                                         </tr>

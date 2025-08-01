@@ -83,6 +83,28 @@ interface Conversation {
     reviewData: IndicatorGroup[];
 }
 
+// Interfaces para la respuesta de la API para evitar 'any'
+interface ApiIndicator {
+    id_indicador: string;
+    texto_indicador: string;
+    descripcion: string;
+    nombre_modulo: string;
+    texto_contenido: string;
+    justificacion_pedagogica: string;
+    indicador_desglosado: IndicadorDesglosado;
+}
+
+interface ApiIndicatorGroup {
+    oa: string;
+    indicadores: ApiIndicator[];
+}
+
+interface ApiResponse {
+    silabo_curso_agrupado_por_oa: ApiIndicatorGroup[];
+    introduccion_curso: IntroductionPhrase[];
+}
+
+
 // --- COMPONENTE PRINCIPAL DE LA PÁGINA ---
 export default function AcademicPlanner() {
   const [prompt, setPrompt] = useState("El estudiante debe poder comprender textos complejos y, además, ser capaz de redactar un ensayo coherente. También se evaluará la capacidad de analizar la estructura de un texto y, finalmente, de crear narrativas propias.")
@@ -113,14 +135,14 @@ export default function AcademicPlanner() {
     }
   }
 
-  const mapApiResponseToIndicatorGroups = (apiResponse: any): IndicatorGroup[] => {
+  const mapApiResponseToIndicatorGroups = (apiResponse: ApiResponse): IndicatorGroup[] => {
     if (!apiResponse || !Array.isArray(apiResponse.silabo_curso_agrupado_por_oa)) {
       console.error("API response is not in the expected format for indicators.");
       return [];
     }
 
-    return apiResponse.silabo_curso_agrupado_por_oa.map((grupo: any) => {
-      const mappedIndicators = grupo.indicadores.map((indicador: any) => ({
+    return apiResponse.silabo_curso_agrupado_por_oa.map((grupo) => {
+      const mappedIndicators = grupo.indicadores.map((indicador) => ({
         id: indicador.id_indicador,
         title: indicador.texto_indicador,
         description: indicador.descripcion,
@@ -129,7 +151,7 @@ export default function AcademicPlanner() {
         texto_contenido: indicador.texto_contenido,
         justificacion_pedagogica: indicador.justificacion_pedagogica,
         indicador_desglosado: indicador.indicador_desglosado,
-        status: 'original',
+        status: 'original' as const, // Asegurar el tipo literal
         isManual: false,
       }));
 
@@ -160,7 +182,7 @@ export default function AcademicPlanner() {
         throw new Error(`Error en la petición a n8n: ${response.statusText}`);
       }
 
-      const responseData = await response.json();
+      const responseData: ApiResponse = await response.json();
       
       const newReviewData = mapApiResponseToIndicatorGroups(responseData);
       const newIntroduction = Array.isArray(responseData.introduccion_curso) ? responseData.introduccion_curso : [];
@@ -338,7 +360,8 @@ export default function AcademicPlanner() {
     }
   };
 
-  const canCreatePlanning = (prompt.trim().length > 0 || uploadedFile) && !isGenerating;
+  // --- FIX: Se asegura que el valor sea siempre booleano ---
+  const canCreatePlanning = (prompt.trim().length > 0 || uploadedFile !== null) && !isGenerating;
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-200 p-4 sm:p-6 md:p-8">

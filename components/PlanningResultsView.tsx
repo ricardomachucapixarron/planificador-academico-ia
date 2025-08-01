@@ -373,7 +373,7 @@ export default function PlanningResultsView({ initialPlanningResults, isGenerati
                                               {isCovered ? <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0 mt-1" /> : <AlertCircle className="h-6 w-6 text-gray-500 flex-shrink-0 mt-1" />}
                                               <div>
                                                   <CardTitle className="text-lg leading-tight text-gray-100">{result.requiredsectionname}</CardTitle>
-                                                  <p className="text-sm text-gray-300 mt-1">{result.texto_contenido}</p>
+                                                  <p className="text-sm text-gray-300 mt-1"><span className="font-semibold">Contenido Syllabus:</span> {result.texto_contenido}</p>
                                                   <CardDescription className="text-sm text-gray-400 mt-2 flex items-center gap-2 flex-wrap">
                                                       <span>
                                                           <span className="font-semibold text-gray-300">Indicador de logro:</span> {result.requiredsectiondescription}

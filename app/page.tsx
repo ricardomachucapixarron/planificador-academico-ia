@@ -4,7 +4,7 @@ import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Send } from "lucide-react"
 
-import PlanningResultsPage from "@/app/planificacion-creada/page"
+import PlanningResultsView from "@/components/PlanningResultsView"
 import ProposedPlanReview from "@/components/ProposedPlanReview"
 import PromptInputCard from "@/components/PromptInputCard"
 
@@ -36,13 +36,12 @@ interface SuggestedSection {
   uncovered_reasons: string;
 }
 
-// --- CAMBIO: Interfaz actualizada para incluir todos los campos necesarios ---
 interface PlanningResult {
-  requiredsectionname: string;
-  requiredsection: string;
-  requiredsectiondescription: string;
-  suggestedsections: SuggestedSection[];
-  assignedSection: SuggestedSection | null;
+  requiredsectionname: string
+  requiredsection: string
+  requiredsectiondescription: string
+  suggestedsections: SuggestedSection[]
+  assignedSection: SuggestedSection | null
   topic: string;
   texto_contenido: string;
   justificacion_pedagogica?: string;
@@ -105,7 +104,6 @@ export default function AcademicPlanner() {
   const [isDefiningIndicators, setIsDefiningIndicators] = useState(false);
   const [currentConversationIndex, setCurrentConversationIndex] = useState(0);
   const [highlightedCard, setHighlightedCard] = useState<string | null>(null);
-  const [assignmentThreshold, setAssignmentThreshold] = useState(0.595);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -282,7 +280,6 @@ export default function AcademicPlanner() {
       const responseData = await response.json();
       
       setCurrentView('results');
-      // --- CAMBIO: Se asegura que la respuesta de la API se mapee a la interfaz PlanningResult correcta ---
       const results: PlanningResult[] = responseData.planningdata || [];
       
       const processedResults: PlanningResult[] = results.map((result) => {
@@ -303,11 +300,24 @@ export default function AcademicPlanner() {
             return { ...suggestion, coverage_rate, coverage_label, uncovered_reasons };
         });
 
-        const sortedSuggestions = [...suggestionsWithCoverage].sort((a, b) => b.score - a.score);
-        const topSuggestion = sortedSuggestions[0] || null;
-        const assigned = (topSuggestion && topSuggestion.score >= assignmentThreshold && topSuggestion.coverage_label === 'Cubierto') ? topSuggestion : null;
+        // --- LÓGICA DE ASIGNACIÓN ACTUALIZADA ---
+        const fullyCoveredSuggestions = suggestionsWithCoverage.filter(
+            s => s.coverage_label === 'Cubierto'
+        );
+
+        let assignedSection: SuggestedSection | null = null;
+
+        if (fullyCoveredSuggestions.length > 0) {
+            assignedSection = fullyCoveredSuggestions.reduce((best, current) => 
+                current.score > best.score ? current : best
+            );
+        }
         
-        return { ...result, suggestedsections: sortedSuggestions, assignedSection: assigned };
+        return { 
+            ...result, 
+            suggestedsections: suggestionsWithCoverage.sort((a, b) => b.score - a.score), 
+            assignedSection 
+        };
       });
       
       setPlanningResults(processedResults);
@@ -399,7 +409,7 @@ export default function AcademicPlanner() {
           </div>
         )}
         
-        {currentView === 'results' && <PlanningResultsPage initialPlanningResults={planningResults} isGeneratingData={isGenerating} />}
+        {currentView === 'results' && <PlanningResultsView initialPlanningResults={planningResults} isGeneratingData={isGenerating} />}
       </div>
     </div>
   )
